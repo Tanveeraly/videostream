@@ -12,6 +12,18 @@ dotenv.config({
 
 connectDB()
 
+.then(()=>{
+
+  app.liten(process.env.PORT||8000,()=>
+  {
+      console.log(`the server is running at Port:${process.env.PORT}`)
+  })
+})
+.catch((err)=>{
+  console.log(err)
+})
+
+
 
 
 /*
