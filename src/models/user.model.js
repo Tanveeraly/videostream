@@ -67,7 +67,7 @@ const userSchema = new Schema (
 
 )
 
-userSchema.pre("save", async funtion(next){
+userSchema.pre("save", async function(next){
      if (!this.isModified("password")) return next()
     this.password=bcrypt.hash(this.password,10)
     next()
@@ -75,13 +75,13 @@ userSchema.pre("save", async funtion(next){
 })
 // to check the password is is correct we use a method
 // result will be true or false
-userSchema.methods.passwordValidator = async funtion(password){
+userSchema.methods.passwordValidator = async function(password){
   
   return await bcrypt.compare(password,this.password)
 
 }
      
-userSchema.methods.generateAccessToken=funtion(){
+userSchema.methods.generateAccessToken=function(){
  jwt.sign({
     id:this.id,
     email:this.email,
@@ -89,7 +89,7 @@ userSchema.methods.generateAccessToken=funtion(){
  },
  process.env.ACCESS_TOKEN_SECRET,
  {
-    expireIn:process.env.ACCESS_EXPIRY
+    expiresIn:process.env.ACCESS_EXPIRY
  }
 
 )
