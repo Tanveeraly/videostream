@@ -1,5 +1,5 @@
 
-const asyscHandler =(requestHandler) =>{
+const asynHandler =(requestHandler) =>{
 
     return (req, res, next) => {
   
@@ -9,4 +9,4 @@ const asyscHandler =(requestHandler) =>{
     }
 }
 
-export {asyscHandler}
+export {asynHandler}

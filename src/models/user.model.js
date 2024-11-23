@@ -1,98 +1,82 @@
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt"
-const userSchema = new Schema (
+import bcrypt from "bcrypt";
 
-{
+const userSchema = new Schema(
+  {
     username: {
-        type: String,
-        required: true,
-        unique:true,
-        lowercase :true,
-        trim:true,
-        index:true
-    }
-,
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
     email: {
-        type: String,
-        required: true,
-        unique:true,
-        lowercase :true,
-        trim:true,
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
-
-    fullname: {
-        type: String,
-        required: true,
-        trim:true,
-        index:true
+    fullName: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
     },
-
     avatar: {
-        type: String,//we can use url to load the imgage from third party 
-        required: true,
-
+      type: String, // URL for third-party image loading
+      required: true,
     },
-
-    coverimgae: {
-        type: String,
-        
+    coverImage: {
+      type: String,
     },
-
-    watchHistory:[
-         {
-          type:Schema.Types.ObjectId,
-          ref:'Video'
-
-
-         }
-
+    watchHistory: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Video",
+      },
     ],
-
-    password:{
-          
-        type:String,
-        required:[true,'Password is required']
+    password: {
+      type: String,
+      required: [true, "Password is required"],
     },
+    refreshToken: {
+      type: String,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-    refreshToken:{
+// Hash password before saving
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
 
-       type:String,
+// Password validation method
+userSchema.methods.passwordValidator = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
 
-    }  
-},
-{
-    timestamps:true
-}
+// Generate Access Token method
+userSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    {
+      id: this.id,
+      email: this.email,
+      fullName: this.fullName,
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_EXPIRY,
+    }
+  );
+};
 
-)
-
-userSchema.pre("save", async function(next){
-     if (!this.isModified("password")) return next()
-    this.password=bcrypt.hash(this.password,10)
-    next()
-
-})
-// to check the password is is correct we use a method
-// result will be true or false
-userSchema.methods.passwordValidator = async function(password){
-  
-  return await bcrypt.compare(password,this.password)
-
-}
-     
-userSchema.methods.generateAccessToken=function(){
- jwt.sign({
-    id:this.id,
-    email:this.email,
-    fullname:this.fullname,
- },
- process.env.ACCESS_TOKEN_SECRET,
- {
-    expiresIn:process.env.ACCESS_EXPIRY
- }
-
-)
-}
-
-export const User = mongoose.model("User,userSchema")
+// Export the model
+export const User = mongoose.model("User", userSchema);
