@@ -2,6 +2,44 @@ import { asynHandler } from "../utlis/asynHandler.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utlis/apiError.js";
 import { uploadOncloudinary } from "../utlis/cloudinary.js";
+import  {ApiResponse} from "../utlis/apiResponse.js";
+
+const generateRefreshandAccessToken=async(userId)=>{
+
+  try {
+  
+     const user= await User.findById(userId);
+     if(!user) {
+      throw new ApiError(404, "User not found");
+      }
+      
+      //console.log("User Object:", user);
+      //console.log("AccessToken Method:", typeof user.generateAccessToken);
+     // console.log("RefreshToken Method:", typeof user.generateRefreshToken);
+
+     const refreshToken = await user.generateRefreshToken();
+     const accessToken = await user.generateAccessToken();
+    
+     console.log("Generated Refresh Token:", refreshToken);
+     console.log("Generated Access Token:", accessToken);
+    
+      user.refreshToken=  refreshToken; //to save the refresh token in db
+      await user.save({validateBeforeSave:false});
+    
+    return{accessToken,refreshToken}
+  
+  
+  } catch (error) {
+    if(error instanceof ApiError){
+      throw error;
+    }
+   
+    throw new ApiError(500,"Error while generating Refresh and Access Toke");
+    
+  }
+  
+  
+    };
 
 const registerUser = asynHandler(async (req, res) => {
   /* USER DATA FROM BACKEND
@@ -12,8 +50,15 @@ const registerUser = asynHandler(async (req, res) => {
  5:CREATE USER OBJECT -CREATE ENTRY IN DATABASE MONGO DB
 6:REMOVE PASSWORD AND REFRESH TOKEN FROM RESPONSE
 7:CHECK FOR USER CREATION 
-8:RETURN REPONSE
+8:RETURN REPONSE'
 */
+
+/*
+FUNTION TO GENERATE REFRESH AND ACCESSES TOKEN 
+
+*/
+
+
   const { fullName, email, username, password } = req.body;
   console.log("Name", fullName);
 
@@ -54,15 +99,19 @@ const registerUser = asynHandler(async (req, res) => {
   const createduser = await User.findById(user.id).select(
     "-password  -refreshToken"
   );
-  if (createduser) {
-    throw new ApiResponse(201, "The user is createsd");
-  }
+
   if (!createduser) {
     throw new ApiError(500, "somethng went wrong");
   }
+  
+  return res.status(201).json(
+    new ApiResponse(201,createduser,"User registered succusfulley")
+  )
+
 });
 
 const loginUser = asynHandler(async (req, res) => {
+
   //body req (email || username|| password)
   // validation (user exist or not)
   //find user
@@ -71,10 +120,11 @@ const loginUser = asynHandler(async (req, res) => {
   //return tokens
   //susses message;
 
-  const { username, email, password } = body.req;
+  const { username, email, password } = req.body;
+       console.log(email)
 
-  if (!username || !email) {
-    throw new ApiError(400, "Username or Password is Required");
+  if (!username && !email) {
+    throw new ApiError(400, "Username or email is Required");
   }
 
   const user = await User.findOne({
@@ -85,11 +135,63 @@ const loginUser = asynHandler(async (req, res) => {
     throw new ApiError(400, "User is not found");
   }
 
-  const isPasswordvalid = User.passwordValidator(password);
+  const isPasswordvalid = await user.passwordValidator(password);
 
   if (!isPasswordvalid) {
     throw new ApiError(400, "password is Incorrect");
   }
+  const {accessToken,refreshToken}= await generateRefreshandAccessToken(user._id)
+
+  User.findById(user._id).select("-password -refreshToken")
+
+  const options={
+    httpOnly :true,
+    secure:true
+  }
+   return res.status(200)
+   .cookie("accessToken",accessToken,options)
+   .cookie("refreshtoken",refreshToken,options)
+   .json(
+    new ApiResponse(200,
+    { 
+      
+      user:loginUser,accessToken,refreshToken
+    },
+      "user login Successfully")
+   )
+
+
+
 });
 
-export { registerUser };
+
+const logOutUser=asynHandler(async(req,res)=>{
+
+await User.findOneAndUpdate(
+  req.user._id,
+
+  { $unset: { refreshToken :1 } },
+   {
+    new: true
+   }
+  
+)
+
+const options={
+  httpOnly :true,
+  secure:true
+}
+
+return res.status(200)
+.clearCookie("accessToken",options)
+.clearCookie("refreshtoken",options)
+.json(
+  new ApiResponse(200,{},"User logout ")
+)
+})
+export {
+   registerUser,
+   loginUser,
+   logOutUser
+
+ };

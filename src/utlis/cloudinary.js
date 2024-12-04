@@ -22,6 +22,7 @@ import { v2 as cloudinary } from 'cloudinary';
              })
              //File is successfully Uploaded
              console.log("File is successfully Uploaded",response.url);
+             fs.unlinkSync(localFilePath)
              return response;
         } catch (error) {
             fs.unlinkSync(localFilePath)
